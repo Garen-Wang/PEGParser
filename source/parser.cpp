@@ -10,8 +10,7 @@
 #include <algorithm>
 
 // Macros for debugging parsers
-// #define PEG_PARSER_TRACE
-#define PEG_PARSER_TRACE
+
 #ifdef PEG_PARSER_TRACE
 #  define PEG_PARSER_DEBUG_LOG
 #  define PARSER_TRACE(X) \
