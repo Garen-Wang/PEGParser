@@ -12,15 +12,6 @@ A linear-time C++17 PEG parser generator supporting memoization, left-recursion 
 
 - support parsing non-consecutive strings, adapted to rope data structure
 
-## Usage
-
-1. Create an object of `StringViews`
-2. Append string fragments into `stringViews` 
-3. Pass as an argument of `ParserGenerator::run`
-4. Get result
-
-**Pay attention! Using `stringViews.strings.push_back` without update `stringViews.presums` will trigger potential bugs!**
-
 ---
 
 ## Example

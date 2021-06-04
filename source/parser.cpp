@@ -110,14 +110,15 @@ namespace {
     // bug here
     grammar::Letter current() const {
       if (singleString) {
-//         DEBUG
-//        std::cout << "(WARNING!!!!!)";
         return position < string.size() ? string[position] : '\0';
       } else {
-        auto x = std::upper_bound(svs.presums.begin(), svs.presums.end(), position) - svs.presums.begin();
+//        auto x = std::upper_bound(svs.prefixSums.begin(), svs.prefixSums.end(), position) - svs.prefixSums.begin();
 //        std::cout << "x is " << x << std::endl;
-        if (x >= svs.strings.size()) return '\0';
-        else return svs.strings[x][position - (x > 0 ? svs.presums[x - 1] : 0)];
+        auto x = svs.upper_bound(position);
+        if (x >= svs.getStringSize()) return '\0';
+//        else return svs.strings[x][position - (x > 0 ? svs.prefixSums[x - 1] : 0)];
+        long idx = position - svs.getPrefixSum(x - 1);
+        return svs.getString(x)[idx];
       }
     }
 
@@ -553,11 +554,9 @@ std::ostream &peg_parser::operator<<(std::ostream &stream, const SyntaxTree &tre
 }
 
 StringViews::StringViews() = default;
-StringViews::StringViews(std::vector<std::string_view> strings) : strings(std::move(strings)) {
-  std::size_t now = 0;
-  for (auto x : strings) {
-    presums.push_back(now);
-    now += x.size();
+StringViews::StringViews(std::vector<std::string>& strings) {
+  for (auto it = strings.begin(); it != strings.end(); ++it) {
+    append(it);
   }
 }
 std::size_t StringViews::size() const {
@@ -567,11 +566,39 @@ std::size_t StringViews::size() const {
   }
   return ret;
 }
+std::size_t StringViews::getStringSize() const {
+  return strings.size();
+}
+std::size_t StringViews::getPrefixSum(long idx) const {
+  if (idx >= prefixSums.size() || idx < 0) return 0;
+  return prefixSums[idx];
+}
+std::string_view StringViews::getString(std::size_t idx) const {
+  if (idx >= strings.size()) return std::string_view();
+  return strings[idx];
+}
 void StringViews::append(std::string_view sv) {
   strings.push_back(sv);
-  if (presums.empty()) {
-    presums.push_back(sv.size());
+  if (prefixSums.empty()) {
+    prefixSums.push_back(sv.size());
   } else {
-    presums.push_back(presums.back() + sv.size());
+    prefixSums.push_back(prefixSums.back() + sv.size());
   }
+}
+void StringViews::append(std::vector<std::string>::iterator it) {
+  strings.push_back(*it);
+  if (prefixSums.empty()) {
+    prefixSums.push_back(it->size());
+  } else {
+    prefixSums.push_back(prefixSums.back() + it->size());
+  }
+}
+std::vector<std::string_view>::iterator StringViews::begin() {
+  return strings.begin();
+}
+std::vector<std::string_view>::iterator StringViews::end() {
+  return strings.end();
+}
+long StringViews::upper_bound(std::size_t position) const {
+  return std::upper_bound(prefixSums.begin(), prefixSums.end(), position) - prefixSums.begin();
 }

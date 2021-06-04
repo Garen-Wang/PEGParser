@@ -4,7 +4,7 @@ cmake_minimum_required(VERSION 3.14 FATAL_ERROR)
 
 project(
   PEGParser
-  VERSION 2.1
+  VERSION 1.0
   LANGUAGES CXX
 )
 
@@ -66,20 +66,3 @@ packageProject(
   INCLUDE_DESTINATION include/${PROJECT_NAME}-${PROJECT_VERSION}
   DEPENDENCIES EasyIterator
 )
-
-# test
-project(test)
-
-add_executable(test
-  example/test.cpp
-    )
-
-target_include_directories(test
-  PRIVATE
-    ${PROJECT_SOURCE_DIR}/include
-)
-
-
-target_link_libraries(test PEGParser::PEGParser)
-target_compile_features(${PROJECT_NAME} PRIVATE cxx_std_17)
-

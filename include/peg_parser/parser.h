@@ -5,17 +5,26 @@
 
 #include "grammar.h"
 
-class StringViews {
-public:
-  std::vector<std::string_view> strings;
-  std::vector<std::size_t> presums;
-  explicit StringViews();
-  explicit StringViews(std::vector<std::string_view> strings);
-  [[nodiscard]] std::size_t size() const;
-  void append(std::string_view sv);
-};
 
 namespace peg_parser {
+  // newly-defined class for parsing non-consecutive strings without copying strings
+  class StringViews {
+  private:
+    std::vector<std::string_view> strings;
+    std::vector<std::size_t> prefixSums;
+  public:
+    explicit StringViews();
+    explicit StringViews(std::vector<std::string>& strings);
+    [[nodiscard]] std::size_t size() const;
+    std::size_t getStringSize() const;
+    std::size_t getPrefixSum(long idx) const;
+    std::string_view getString(std::size_t idx) const;
+    void append(std::string_view sv);
+    void append(std::vector<std::string>::iterator it);
+    std::vector<std::string_view>::iterator begin();
+    std::vector<std::string_view>::iterator end();
+    long upper_bound(std::size_t position) const;
+  };
 
   struct SyntaxTree {
     std::shared_ptr<grammar::Rule> rule;
@@ -38,22 +47,22 @@ namespace peg_parser {
       if (!singleString) return std::string_view(); // cannot view when it is not single string
       return fullString.substr(begin, length());
     }
-    std::string string() const {
+    std::string string() {
       if (singleString) return std::string(view());
       else {
         std::size_t now = 0;
         std::string res;
-        for (auto str : svs.strings) {
-          if (now <= begin && begin < now + str.size()) {
+        for (auto & sv : svs) {
+          if (now <= begin && begin < now + sv.size()) {
             // exactly once
-            if (now <= end && end <= now + str.size()) res += str.substr(begin - now, length());
-            else res += str.substr(begin - now);
-          } else if (now <= end && end <= now + str.size()) {
-            res += str.substr(0, end - now);
-          } else if (begin <= now && now + str.size() <= end) {
-            res += str;
+            if (now <= end && end <= now + sv.size()) res += sv.substr(begin - now, length());
+            else res += sv.substr(begin - now);
+          } else if (now <= end && end <= now + sv.size()) {
+            res += sv.substr(0, end - now);
+          } else if (begin <= now && now + sv.size() <= end) {
+            res += sv;
           }
-          now += str.size();
+          now += sv.size();
         }
         return res;
       }

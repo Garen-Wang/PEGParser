@@ -187,6 +187,11 @@ namespace peg_parser {
       }
       return interpret(parsed.syntax).evaluate(std::forward<Args>(args)...);
     }
+
+    R run(std::vector<std::string>& strings, Args &&...args) const {
+      StringViews stringViews(strings);
+      return run(stringViews, std::forward<Args>(args)...);
+    }
   };
 
 }  // namespace peg_parser
