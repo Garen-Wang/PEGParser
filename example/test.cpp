@@ -51,14 +51,16 @@ int main() {
     if (str == "q" || str == "quit") {
       break;
     }
-    std::string str1 = "(1 + ", str2 = " 2) * 3", str3 = " + 3";
-    std::vector<std::string_view> temp;
-    StringViews svs(temp);
-    svs.append(str1);
-    svs.append(str2);
-    svs.append(str3);
+//    std::vector<std::string_view> temp;
+    std::vector<std::string> temp2;
+    temp2.emplace_back("3");
+    temp2.emplace_back(" ");
+    temp2.emplace_back("+");
+    temp2.emplace_back(" ");
+    temp2.emplace_back("2");
+//    peg_parser::StringViews svs(temp2);
     try {
-      auto result = calculator.run(svs, variables);
+      auto result = calculator.run(temp2, variables);
       cout << str << " = " << result << endl;
     } catch (peg_parser::SyntaxError &error) {
       auto syntax = error.syntax;
