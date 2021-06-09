@@ -29,7 +29,7 @@ namespace peg_parser {
   */
   class Input {
   public:
-    virtual ~Input() = delete;
+    virtual ~Input() = default;
     virtual char current() const = 0;
     virtual void advance(int amount = 1) = 0;
     virtual int getPosition() const = 0;
