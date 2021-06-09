@@ -66,3 +66,19 @@ packageProject(
   INCLUDE_DESTINATION include/${PROJECT_NAME}-${PROJECT_VERSION}
   DEPENDENCIES EasyIterator
 )
+
+# test
+project(cpp_parser)
+
+add_executable(cpp_parser
+  example/test.cpp
+    )
+
+target_include_directories(cpp_parser
+  PRIVATE
+  ${PROJECT_SOURCE_DIR}/include
+)
+
+
+target_link_libraries(cpp_parser PEGParser::PEGParser)
+target_compile_features(${PROJECT_NAME} PRIVATE cxx_std_17)

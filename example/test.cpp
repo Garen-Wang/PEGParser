@@ -52,15 +52,28 @@ int main() {
       break;
     }
 //    std::vector<std::string_view> temp;
-    std::vector<std::string> temp2;
-    temp2.emplace_back("3");
-    temp2.emplace_back(" ");
-    temp2.emplace_back("+");
-    temp2.emplace_back(" ");
-    temp2.emplace_back("2");
+//    std::vector<std::string> temp2;
+//    temp2.emplace_back("3");
+//    temp2.emplace_back(" ");
+//    temp2.emplace_back("+");
+//    temp2.emplace_back(" ");
+//    temp2.emplace_back("2");
 //    peg_parser::StringViews svs(temp2);
+    peg_parser::Input* input = new peg_parser::StringViews;
+    std::string s1 = "3";
+    std::string s2 = " ";
+    std::string s3 = "*";
+    std::string s4 = " ";
+    std::string s5 = "2";
+    input->append(s1);
+    input->append(s3);
+    input->append(s5);
+//    input->append(s2);
+//    input->append(s3);
+//    input->append(s4);
+//    input->append(s5);
     try {
-      auto result = calculator.run(temp2, variables);
+      auto result = calculator.run(input, variables);
       cout << str << " = " << result << endl;
     } catch (peg_parser::SyntaxError &error) {
       auto syntax = error.syntax;

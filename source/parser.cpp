@@ -104,7 +104,7 @@ namespace {
     size_t maxPosition;
 
     explicit State(const std::string_view &s, size_t c = 0) : customizedInput(nullptr), string(s), position(c), maxPosition(c), customized(false) {}
-    explicit State(Input* i, size_t c = 0) : customizedInput(i), string(), position(c), maxPosition(c), customized(true) {}
+    explicit State(Input* i, size_t c = 0) : customizedInput(i), string(), maxPosition(c), customized(true) { setPosition(c); }
 
     grammar::Letter current() const {
       if (!customized) {
@@ -123,7 +123,10 @@ namespace {
 
     void advance(int amount = 1) {
       if (!customized) position += amount;
-      else customizedInput->advance(amount);
+      else {
+        customizedInput->advance(amount);
+        position = customizedInput->getPosition();
+      }
       position = std::min(position, (customized? customizedInput->length() : string.length()));
       maxPosition = std::max(maxPosition, position);
       PARSER_ADVANCE("advancing " << amount << " to " << position << ": '" << current() << "'");
@@ -135,6 +138,7 @@ namespace {
         position = p;
       } else {
         customizedInput->setPosition(p);
+        position = customizedInput->getPosition();
       }
       PARSER_ADVANCE("resetting to " << position << ": '" << current() << "'");
     }
@@ -149,7 +153,7 @@ namespace {
       size_t innerCount;
     };
 
-    Saved save() { return Saved{position, !stack.empty() ? stack.back()->inner.size() : 0}; }
+    Saved save() { return Saved{getPosition(), !stack.empty() ? stack.back()->inner.size() : 0}; }
 
     void load(const Saved &s) {
       if (!stack.empty()) {
@@ -287,7 +291,8 @@ namespace {
             }
           }
           else {
-            State recursionState(state.customizedInput, syntaxTree->begin);
+            Input* copyInput = state.customizedInput->copy();
+            State recursionState(copyInput, syntaxTree->begin);
             recursionState.trackError(state.getErrorTree());
             // Copy the cache except the currect position to the recursion state
             // TODO: keeping the current state and modifying the cache in place is
@@ -300,6 +305,7 @@ namespace {
             recursionState.addToCache(syntaxTree);
             auto tmp = parseRule(rule, recursionState, false);
             state.trackError(recursionState.getErrorTree());
+            delete copyInput;
             if (tmp->valid && tmp->end > syntaxTree->end) {
               PARSER_TRACE("parsed left recursion");
               syntaxTree = tmp;
