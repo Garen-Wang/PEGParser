@@ -91,8 +91,8 @@ namespace {
   class State {
   public:
     std::string_view string;
-    StringViews svs;
-    bool singleString;
+    Input* customizedInput;
+    bool customized;
   private:
     size_t position;
     using CacheKey = std::tuple<size_t, grammar::Rule *>;
@@ -103,40 +103,46 @@ namespace {
   public:
     size_t maxPosition;
 
-    explicit State(const std::string_view &s, size_t c = 0) : string(s), position(c), maxPosition(c), singleString(true) {}
-    explicit State(StringViews s, size_t c = 0) : svs(std::move(s)), position(c), maxPosition(c), singleString(false) {}
+    explicit State(const std::string_view &s, size_t c = 0) : customizedInput(nullptr), string(s), position(c), maxPosition(c), customized(false) {}
+    explicit State(Input* i, size_t c = 0) : customizedInput(i), string(), position(c), maxPosition(c), customized(true) {}
 
-    // bug here
     grammar::Letter current() const {
-      if (singleString) {
+      if (!customized) {
         return position < string.size() ? string[position] : '\0';
       } else {
+        return customizedInput->current();
 //        auto x = std::upper_bound(svs.prefixSums.begin(), svs.prefixSums.end(), position) - svs.prefixSums.begin();
 //        std::cout << "x is " << x << std::endl;
-        auto x = svs.upper_bound(position);
-        if (x >= svs.getStringSize()) return '\0';
+//        auto x = svs.upper_bound(position);
+//        if (x >= svs.getStringSize()) return '\0';
 //        else return svs.strings[x][position - (x > 0 ? svs.prefixSums[x - 1] : 0)];
-        long idx = position - svs.getPrefixSum(x - 1);
-        return svs.getString(x)[idx];
+//        long idx = position - svs.getPrefixSum(x - 1);
+//        return svs.getString(x)[idx];
       }
     }
 
-    void advance(size_t amount = 1) {
-      position += amount;
-      position = std::min(position, (singleString ? string.size() : svs.size()));
+    void advance(int amount = 1) {
+      if (!customized) position += amount;
+      else customizedInput->advance(amount);
+      position = std::min(position, (customized? customizedInput->length() : string.length()));
       maxPosition = std::max(maxPosition, position);
       PARSER_ADVANCE("advancing " << amount << " to " << position << ": '" << current() << "'");
     }
 
-    void setPosition(size_t p) {
-      if (p == position) {
-        return;
+    void setPosition(int p) {
+      if (!customized) {
+        if (p == position) return;
+        position = p;
+      } else {
+        customizedInput->setPosition(p);
       }
-      position = p;
       PARSER_ADVANCE("resetting to " << position << ": '" << current() << "'");
     }
 
-    size_t getPosition() const { return position; }
+    size_t getPosition() const {
+      if (!customized) return position;
+      else return customizedInput->getPosition();
+    }
 
     struct Saved {
       size_t position;
@@ -153,7 +159,11 @@ namespace {
       setPosition(s.position);
     }
 
-    bool isAtEnd() const { return position == (singleString ? string.size() : svs.size()); }
+    bool isAtEnd() const {
+      if (!customized) return position == string.length();
+      else return customizedInput->isAtEnd();
+//      return position == (singleString ? string.size() : svs.size());
+    }
 
     std::shared_ptr<SyntaxTree> getCached(const std::shared_ptr<grammar::Rule> &rule) {
       auto it = cache.find(std::make_pair(position, rule.get()));
@@ -231,8 +241,10 @@ namespace {
     }
 
     std::shared_ptr<SyntaxTree> syntaxTree;
-    if (state.singleString) syntaxTree = std::make_shared<SyntaxTree>(rule, state.string, state.getPosition());
-    else syntaxTree = std::make_shared<SyntaxTree>(rule, state.svs, state.getPosition());
+//    if (state.singleString) syntaxTree = std::make_shared<SyntaxTree>(rule, state.string, state.getPosition());
+//    else syntaxTree = std::make_shared<SyntaxTree>(rule, state.svs, state.getPosition());
+    if (!state.customized) syntaxTree = std::make_shared<SyntaxTree>(rule, state.string, state.getPosition());
+    else syntaxTree = std::make_shared<SyntaxTree>(rule, state.customizedInput, state.getPosition());
 
     if (useCache) {
       state.addToCache(syntaxTree);
@@ -249,7 +261,7 @@ namespace {
       if (useCache && syntaxTree->recursive) {
         PARSER_TRACE("enter left recursion: " << rule->name);
         while (true) {
-          if (state.singleString) {
+          if (!state.customized) {
             State recursionState(state.string, syntaxTree->begin);
             recursionState.trackError(state.getErrorTree());
             // Copy the cache except the currect position to the recursion state
@@ -275,7 +287,7 @@ namespace {
             }
           }
           else {
-            State recursionState(state.svs, syntaxTree->begin);
+            State recursionState(state.customizedInput, syntaxTree->begin);
             recursionState.trackError(state.getErrorTree());
             // Copy the cache except the currect position to the recursion state
             // TODO: keeping the current state and modifying the cache in place is
@@ -477,9 +489,9 @@ namespace {
 }  // namespace
 
 SyntaxTree::SyntaxTree(const std::shared_ptr<grammar::Rule> &r, std::string_view s, size_t p)
-    : rule(r), fullString(s), begin(p), end(p), valid(false), active(true), singleString(true) {}
-SyntaxTree::SyntaxTree(const std::shared_ptr<grammar::Rule> &r, StringViews  svs, size_t p)
-    : rule(r), svs(std::move(svs)), begin(p), end(p), valid(false), active(true), singleString(false) {}
+    : rule(r), fullString(s), begin(p), end(p), valid(false), active(true), customized(false) {}
+SyntaxTree::SyntaxTree(const std::shared_ptr<grammar::Rule> &r, Input* i, size_t p)
+    : rule(r), customizedInput(i), begin(p), end(p), valid(false), active(true), customized(true) {}
 
 const char *peg_parser::Parser::GrammarError::what() const noexcept {
   if (buffer.size() == 0) {
@@ -514,9 +526,9 @@ Parser::Result Parser::parseAndGetError(const std::string_view &str,
   return Parser::Result{result, error};
 }
 
-Parser::Result Parser::parseAndGetError(const StringViews &svs,
+Parser::Result Parser::parseAndGetError(Input* input,
                                         std::shared_ptr<grammar::Rule> grammar) {
-  State state(svs);
+  State state(input);
   auto result = parseRule(grammar, state);
   auto error = state.getErrorTree();
   if (!error) { error = result; }
@@ -535,8 +547,8 @@ std::shared_ptr<SyntaxTree> Parser::parse(const std::string_view &str) const {
 Parser::Result Parser::parseAndGetError(const std::string_view &str) const {
   return parseAndGetError(str, grammar);
 }
-Parser::Result Parser::parseAndGetError(const StringViews &svs) const {
-  return parseAndGetError(svs, grammar);
+Parser::Result Parser::parseAndGetError(Input* in) const {
+  return parseAndGetError(in, grammar);
 }
 
 std::ostream &peg_parser::operator<<(std::ostream &stream, const SyntaxTree &tree) {
@@ -552,6 +564,8 @@ std::ostream &peg_parser::operator<<(std::ostream &stream, const SyntaxTree &tre
   return stream;
 }
 
+
+/*
 StringViews::StringViews() = default;
 StringViews::StringViews(std::vector<std::string>& strings) {
   for (auto it = strings.begin(); it != strings.end(); ++it) {
@@ -601,3 +615,4 @@ std::vector<std::string_view>::iterator StringViews::end() {
 long StringViews::upper_bound(std::size_t position) const {
   return std::upper_bound(prefixSums.begin(), prefixSums.end(), position) - prefixSums.begin();
 }
+*/

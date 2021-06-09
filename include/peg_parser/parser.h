@@ -8,6 +8,7 @@
 
 namespace peg_parser {
   // newly-defined class for parsing non-consecutive strings without copying strings
+  /*
   class StringViews {
   private:
     std::vector<std::string_view> strings;
@@ -25,12 +26,25 @@ namespace peg_parser {
     std::vector<std::string_view>::iterator end();
     long upper_bound(std::size_t position) const;
   };
+  */
+  class Input {
+  public:
+    virtual ~Input() = delete;
+    virtual char current() const = 0;
+    virtual void advance(int amount = 1) = 0;
+    virtual int getPosition() const = 0;
+    virtual void setPosition(int pos) = 0;
+    virtual int length() const = 0;
+    virtual bool isAtEnd() const = 0;
+    virtual std::string slice(int begin, int end) = 0;
+  };
+
 
   struct SyntaxTree {
     std::shared_ptr<grammar::Rule> rule;
     std::string_view fullString;
-    StringViews svs;
-    bool singleString;
+    Input* customizedInput;
+    bool customized;
     std::vector<std::shared_ptr<SyntaxTree>> inner;
     size_t begin, end;
 
@@ -39,32 +53,33 @@ namespace peg_parser {
     bool recursive = false;
 
     SyntaxTree(const std::shared_ptr<grammar::Rule> &r, std::string_view s, size_t p);
-    SyntaxTree(const std::shared_ptr<grammar::Rule> &r, StringViews svs, size_t p);
+    SyntaxTree(const std::shared_ptr<grammar::Rule> &r, Input* i, size_t p);
 
     [[nodiscard]] size_t length() const { return end - begin; }
     // deprecated apis
     std::string_view view() const {
-      if (!singleString) return std::string_view(); // cannot view when it is not single string
+      if (customized) return std::string_view(); // cannot view when it is not single string
       return fullString.substr(begin, length());
     }
     std::string string() {
-      if (singleString) return std::string(view());
+      if (!customized) return std::string(view());
       else {
-        std::size_t now = 0;
-        std::string res;
-        for (auto & sv : svs) {
-          if (now <= begin && begin < now + sv.size()) {
-            // exactly once
-            if (now <= end && end <= now + sv.size()) res += sv.substr(begin - now, length());
-            else res += sv.substr(begin - now);
-          } else if (now <= end && end <= now + sv.size()) {
-            res += sv.substr(0, end - now);
-          } else if (begin <= now && now + sv.size() <= end) {
-            res += sv;
-          }
-          now += sv.size();
-        }
-        return res;
+        return customizedInput->slice(begin, end);
+//        std::size_t now = 0;
+//        std::string res;
+//        for (auto & sv : svs) {
+//          if (now <= begin && begin < now + sv.size()) {
+//            // exactly once
+//            if (now <= end && end <= now + sv.size()) res += sv.substr(begin - now, length());
+//            else res += sv.substr(begin - now);
+//          } else if (now <= end && end <= now + sv.size()) {
+//            res += sv.substr(0, end - now);
+//          } else if (begin <= now && now + sv.size() <= end) {
+//            res += sv;
+//          }
+//          now += sv.size();
+//        }
+//        return res;
       }
     }
   };
@@ -90,14 +105,14 @@ namespace peg_parser {
 
     static Result parseAndGetError(const std::string_view &str,
                                    std::shared_ptr<grammar::Rule> grammar);
-    static Result parseAndGetError(const StringViews &svs,
+    static Result parseAndGetError(Input* input,
                                    std::shared_ptr<grammar::Rule> grammar);
     static std::shared_ptr<SyntaxTree> parse(const std::string_view &str,
                                              std::shared_ptr<grammar::Rule> grammar);
 
     std::shared_ptr<SyntaxTree> parse(const std::string_view &str) const;
     Result parseAndGetError(const std::string_view &str) const;
-    Result parseAndGetError(const StringViews &svs) const;
+    Result parseAndGetError(Input* input) const;
   };
 
   std::ostream &operator<<(std::ostream &stream, const SyntaxTree &tree);

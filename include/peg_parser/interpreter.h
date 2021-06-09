@@ -179,19 +179,27 @@ namespace peg_parser {
       return interpret(parsed.syntax).evaluate(std::forward<Args>(args)...);
     }
 
-    R run(const StringViews& stringViews, Args &&...args) const {
-      auto parsed = parser.parseAndGetError(stringViews);
-      auto size = stringViews.size();
-      if (!parsed.syntax->valid || parsed.syntax->end < size) {
+    R run(Input* input, Args &&...args) const {
+      auto parsed = parser.parseAndGetError(input);
+      if (!parsed.syntax->valid || parsed.syntax->end < input->length()) {
         throw SyntaxError(parsed.error);
       }
       return interpret(parsed.syntax).evaluate(std::forward<Args>(args)...);
     }
 
-    R run(std::vector<std::string>& strings, Args &&...args) const {
-      StringViews stringViews(strings);
-      return run(stringViews, std::forward<Args>(args)...);
-    }
+//    R run(const StringViews& stringViews, Args &&...args) const {
+//      auto parsed = parser.parseAndGetError(stringViews);
+//      auto size = stringViews.size();
+//      if (!parsed.syntax->valid || parsed.syntax->end < size) {
+//        throw SyntaxError(parsed.error);
+//      }
+//      return interpret(parsed.syntax).evaluate(std::forward<Args>(args)...);
+//    }
+//
+//    R run(std::vector<std::string>& strings, Args &&...args) const {
+//      StringViews stringViews(strings);
+//      return run(stringViews, std::forward<Args>(args)...);
+//    }
   };
 
 }  // namespace peg_parser
