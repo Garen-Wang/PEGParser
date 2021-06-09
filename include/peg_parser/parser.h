@@ -37,74 +37,7 @@ namespace peg_parser {
     virtual int length() const = 0;
     virtual bool isAtEnd() const = 0;
     virtual std::string slice(int begin, int end) = 0;
-    virtual void append(std::string_view sv) = 0;
     virtual Input* copy() = 0;
-  };
-
-  class StringViews : public Input {
-  private:
-    int position;
-    std::vector<std::string_view> svs;
-    std::vector<std::size_t> prefixSums;
-
-  public:
-    StringViews() : position(0) {}
-    void append(std::string_view sv) {
-      svs.push_back(sv);
-      if (prefixSums.empty()) {
-        prefixSums.push_back(sv.size());
-      } else {
-        prefixSums.push_back(prefixSums.back() + sv.size());
-      }
-    }
-    int length() const {
-      std::size_t ret = 0;
-      for (auto sv : svs) {
-        ret += sv.size();
-      }
-      return ret;
-    }
-    bool isAtEnd() const {
-      return position == length();
-    }
-    void setPosition(int pos) {
-      if (pos == position) return;
-      position = pos;
-    }
-    int getPosition() const {
-      return position;
-    }
-    char current() const {
-      auto x = std::upper_bound(prefixSums.begin(), prefixSums.end(), position) - prefixSums.begin();
-      if (x >= svs.size()) return '\0';
-      else return svs[x][position - (x > 0 ? prefixSums[x - 1] : 0)];
-    }
-    void advance(int amount = 1) {
-      position += amount;
-    }
-    std::string slice(int begin, int end) override {
-      std::size_t now = 0;
-      std::string res;
-      for (auto & sv : svs) {
-        if (now <= begin && begin < now + sv.size()) {
-          // exactly once
-          if (now <= end && end <= now + sv.size()) res += sv.substr(begin - now, length());
-          else res += sv.substr(begin - now);
-        } else if (now <= end && end <= now + sv.size()) {
-          res += sv.substr(0, end - now);
-        } else if (begin <= now && now + sv.size() <= end) {
-          res += sv;
-        }
-        now += sv.size();
-      }
-      return res;
-    }
-    Input* copy() override {
-      Input* ret = new StringViews();
-      ret->setPosition(position);
-      for (auto sv : svs) ret->append(sv);
-      return ret;
-    }
   };
 
 
